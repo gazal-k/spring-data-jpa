@@ -17,7 +17,7 @@ package org.springframework.data.jpa.repository.support;
 
 import org.springframework.data.repository.augment.QueryContext;
 
-import com.mysema.query.jpa.JPQLQuery;
+import com.querydsl.jpa.JPQLQuery;
 
 /**
  * @author Dev Naruka

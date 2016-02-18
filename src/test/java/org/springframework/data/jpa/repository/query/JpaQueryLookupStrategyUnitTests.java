@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2015 the original author or authors.
+ * Copyright 2012-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.sample.User;
 import org.springframework.data.jpa.provider.QueryExtractor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.core.NamedQueries;
 import org.springframework.data.repository.core.RepositoryMetadata;
@@ -61,6 +62,7 @@ public class JpaQueryLookupStrategyUnitTests {
 	@Mock EntityManagerFactory emf;
 	@Mock QueryExtractor extractor;
 	@Mock NamedQueries namedQueries;
+	@Mock ProjectionFactory projectionFactory;
 
 	public @Rule ExpectedException exception = ExpectedException.none();
 
@@ -69,6 +71,7 @@ public class JpaQueryLookupStrategyUnitTests {
 
 		when(em.getEntityManagerFactory()).thenReturn(emf);
 		when(emf.createEntityManager()).thenReturn(em);
+		when(em.getDelegate()).thenReturn(em);
 	}
 
 	/**
@@ -86,7 +89,7 @@ public class JpaQueryLookupStrategyUnitTests {
 		when(em.createQuery(anyString())).thenThrow(reference);
 
 		try {
-			strategy.resolveQuery(method, metadata, namedQueries);
+			strategy.resolveQuery(method, metadata, projectionFactory, namedQueries);
 		} catch (Exception e) {
 			assertThat(e, is(instanceOf(IllegalArgumentException.class)));
 			assertThat(e.getCause(), is(reference));
@@ -108,7 +111,7 @@ public class JpaQueryLookupStrategyUnitTests {
 		exception.expectMessage("Cannot use native queries with dynamic sorting and/or pagination in method");
 		exception.expectMessage(method.toString());
 
-		strategy.resolveQuery(method, metadata, namedQueries);
+		strategy.resolveQuery(method, metadata, projectionFactory, namedQueries);
 	}
 
 	interface UserRepository extends Repository<User, Long> {

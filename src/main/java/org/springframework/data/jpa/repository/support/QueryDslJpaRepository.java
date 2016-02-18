@@ -35,12 +35,12 @@ import org.springframework.data.repository.augment.QueryAugmentationEngine;
 import org.springframework.data.repository.augment.QueryContext.QueryMode;
 import org.springframework.data.repository.core.EntityInformation;
 
-import com.mysema.query.jpa.JPQLQuery;
-import com.mysema.query.jpa.impl.JPAQuery;
-import com.mysema.query.types.EntityPath;
-import com.mysema.query.types.OrderSpecifier;
-import com.mysema.query.types.Predicate;
-import com.mysema.query.types.path.PathBuilder;
+import com.querydsl.core.types.EntityPath;
+import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.Predicate;
+import com.querydsl.core.types.dsl.PathBuilder;
+import com.querydsl.jpa.JPQLQuery;
+import com.querydsl.jpa.impl.AbstractJPAQuery;
 
 /**
  * QueryDsl specific extension of {@link SimpleJpaRepository} which adds implementation for
@@ -49,8 +49,8 @@ import com.mysema.query.types.path.PathBuilder;
  * @author Oliver Gierke
  * @author Thomas Darimont
  */
-public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpaRepository<T, ID> implements
-		QueryDslPredicateExecutor<T> {
+public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpaRepository<T, ID>
+		implements QueryDslPredicateExecutor<T> {
 
 	private static final EntityPathResolver DEFAULT_ENTITY_PATH_RESOLVER = SimpleEntityPathResolver.INSTANCE;
 
@@ -82,6 +82,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 			EntityPathResolver resolver) {
 
 		super(entityInformation, entityManager);
+
 		this.path = resolver.createPath(entityInformation.getJavaType());
 		this.builder = new PathBuilder<T>(path.getType(), path.getMetadata());
 		this.querydsl = new Querydsl(entityManager, builder);
@@ -94,7 +95,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 */
 	@Override
 	public T findOne(Predicate predicate) {
-		return createQuery(predicate).uniqueResult(path);
+		return createQuery(predicate).select(path).fetchOne();
 	}
 
 	/*
@@ -103,7 +104,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 */
 	@Override
 	public List<T> findAll(Predicate predicate) {
-		return createQuery(predicate).list(path);
+		return createQuery(predicate).select(path).fetch();
 	}
 
 	/*
@@ -112,7 +113,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 */
 	@Override
 	public List<T> findAll(Predicate predicate, OrderSpecifier<?>... orders) {
-		return executeSorted(createQuery(predicate), orders);
+		return executeSorted(createQuery(predicate).select(path), orders);
 	}
 
 	/* 
@@ -121,7 +122,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 */
 	@Override
 	public List<T> findAll(Predicate predicate, Sort sort) {
-		return executeSorted(createQuery(predicate), sort);
+		return executeSorted(createQuery(predicate).select(path), sort);
 	}
 
 	/* 
@@ -130,7 +131,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 */
 	@Override
 	public List<T> findAll(OrderSpecifier<?>... orders) {
-		return executeSorted(createQuery(new Predicate[0]), orders);
+		return executeSorted(createQuery(new Predicate[0]).select(path), orders);
 	}
 
 	/*
@@ -140,11 +141,11 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	@Override
 	public Page<T> findAll(Predicate predicate, Pageable pageable) {
 
-		JPQLQuery countQuery = createQuery(predicate);
-		JPQLQuery query = querydsl.applyPagination(pageable, createQuery(predicate));
+		JPQLQuery<?> countQuery = createQuery(predicate);
+		JPQLQuery<T> query = querydsl.applyPagination(pageable, createQuery(predicate).select(path));
 
-		Long total = countQuery.count();
-		List<T> content = total > pageable.getOffset() ? query.list(path) : Collections.<T> emptyList();
+		long total = countQuery.fetchCount();
+		List<T> content = pageable == null || total > pageable.getOffset() ? query.fetch() : Collections.<T> emptyList();
 
 		return new PageImpl<T>(content, pageable, total);
 	}
@@ -155,7 +156,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 */
 	@Override
 	public long count(Predicate predicate) {
-		return createQuery(predicate).count();
+		return createQuery(predicate).fetchCount();
 	}
 
 	/* 
@@ -164,7 +165,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 */
 	@Override
 	public boolean exists(Predicate predicate) {
-		return createQuery(predicate).exists();
+		return createQuery(predicate).fetchCount() > 0;
 	}
 
 	/**
@@ -173,9 +174,9 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 * @param predicate
 	 * @return the Querydsl {@link JPQLQuery}.
 	 */
-	protected JPQLQuery createQuery(Predicate... predicate) {
+	protected JPQLQuery<?> createQuery(Predicate... predicate) {
 
-		JPAQuery query = querydsl.createQuery(path).where(predicate);
+		AbstractJPAQuery<?, ?> query = querydsl.createQuery(path).where(predicate);
 		CrudMethodMetadata metadata = getRepositoryMethodMetadata();
 
 		if (metadata == null) {
@@ -208,7 +209,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 * @param orders must not be {@literal null}.
 	 * @return
 	 */
-	private List<T> executeSorted(JPQLQuery query, OrderSpecifier<?>... orders) {
+	private List<T> executeSorted(JPQLQuery<T> query, OrderSpecifier<?>... orders) {
 		return executeSorted(query, new QSort(orders));
 	}
 
@@ -219,7 +220,7 @@ public class QueryDslJpaRepository<T, ID extends Serializable> extends SimpleJpa
 	 * @param sort must not be {@literal null}.
 	 * @return
 	 */
-	private List<T> executeSorted(JPQLQuery query, Sort sort) {
-		return querydsl.applySorting(sort, query).list(path);
+	private List<T> executeSorted(JPQLQuery<T> query, Sort sort) {
+		return querydsl.applySorting(sort, query).fetch();
 	}
 }

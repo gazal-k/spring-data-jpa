@@ -17,19 +17,20 @@ package org.springframework.data.jpa.repository.support;
 
 import org.springframework.data.repository.augment.QueryContext;
 
-import com.mysema.query.jpa.impl.JPAQuery;
-import com.mysema.query.types.EntityPath;
-import com.mysema.query.types.path.PathBuilder;
+import com.querydsl.core.types.EntityPath;
+import com.querydsl.core.types.dsl.PathBuilder;
+import com.querydsl.jpa.impl.AbstractJPAQuery;
 
 /**
  * @author Dev Naruka
  */
-public class QueryDslJpaQueryContext<T> extends QueryContext<JPAQuery> {
+public class QueryDslJpaQueryContext<T> extends QueryContext<AbstractJPAQuery> {
 
 	private final EntityPath<T> root;
 	private final PathBuilder<T> pathBuilder;
 
-	public QueryDslJpaQueryContext(JPAQuery query, EntityPath<T> root, PathBuilder<T> builder, QueryMode queryMode) {
+	public QueryDslJpaQueryContext(AbstractJPAQuery query, EntityPath<T> root, PathBuilder<T> builder,
+			QueryMode queryMode) {
 		super(query, queryMode);
 		this.root = root;
 		this.pathBuilder = builder;

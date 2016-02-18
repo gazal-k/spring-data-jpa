@@ -15,14 +15,18 @@
  */
 package org.springframework.data.jpa.repository.query;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import javax.persistence.EntityManager;
 import javax.persistence.LockModeType;
 import javax.persistence.Query;
 import javax.persistence.QueryHint;
+import javax.persistence.Tuple;
+import javax.persistence.TupleElement;
 import javax.persistence.TypedQuery;
 
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.query.JpaQueryExecution.CollectionExecution;
 import org.springframework.data.jpa.repository.query.JpaQueryExecution.ModifyingExecution;
@@ -35,7 +39,9 @@ import org.springframework.data.jpa.repository.support.JpaEntityInformation;
 import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport;
 import org.springframework.data.repository.augment.QueryAugmentationEngine;
 import org.springframework.data.repository.augment.QueryAugmentationEngineAware;
+import org.springframework.data.repository.query.ParametersParameterAccessor;
 import org.springframework.data.repository.query.RepositoryQuery;
+import org.springframework.data.repository.query.ResultProcessor;
 import org.springframework.util.Assert;
 
 /**
@@ -128,7 +134,13 @@ public abstract class AbstractJpaQuery implements RepositoryQuery, QueryAugmenta
 	 * @return
 	 */
 	private Object doExecute(JpaQueryExecution execution, Object[] values) {
-		return execution.execute(this, values);
+
+		Object result = execution.execute(this, values);
+
+		ParametersParameterAccessor accessor = new ParametersParameterAccessor(method.getParameters(), values);
+		ResultProcessor withDynamicProjection = method.getResultProcessor().withDynamicProjection(accessor);
+
+		return withDynamicProjection.processResult(result, TupleConverter.INSTANCE);
 	}
 
 	protected JpaQueryExecution getExecution() {
@@ -243,4 +255,47 @@ public abstract class AbstractJpaQuery implements RepositoryQuery, QueryAugmenta
 	 * @return
 	 */
 	protected abstract Query doCreateCountQuery(Object[] values);
+
+	private static enum TupleConverter implements Converter<Object, Object> {
+
+		INSTANCE;
+
+		/* 
+		 * (non-Javadoc)
+		 * @see org.springframework.core.convert.converter.Converter#convert(java.lang.Object)
+		 */
+		@Override
+		public Object convert(Object source) {
+
+			if (!(source instanceof Tuple)) {
+				return source;
+			}
+
+			Tuple tuple = (Tuple) source;
+			Map<String, Object> result = new HashMap<String, Object>();
+
+			for (TupleElement<?> element : tuple.getElements()) {
+
+				String alias = element.getAlias();
+
+				if (alias == null || isIndexAsString(alias)) {
+					throw new IllegalStateException("No aliases found in result tuple! Make sure your query defines aliases!");
+				}
+
+				result.put(element.getAlias(), tuple.get(element));
+			}
+
+			return result;
+		}
+
+		private static boolean isIndexAsString(String source) {
+
+			try {
+				Integer.parseInt(source);
+				return true;
+			} catch (NumberFormatException o_O) {
+				return false;
+			}
+		}
+	}
 }

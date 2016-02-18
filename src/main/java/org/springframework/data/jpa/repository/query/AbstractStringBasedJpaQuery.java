@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2014 the original author or authors.
+ * Copyright 2008-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package org.springframework.data.jpa.repository.query;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
+import javax.persistence.Tuple;
 
 import org.springframework.data.jpa.repository.support.JpaQueryContext;
 import org.springframework.data.repository.augment.QueryAugmentationEngine;
@@ -24,6 +25,8 @@ import org.springframework.data.repository.augment.QueryContext.QueryMode;
 import org.springframework.data.repository.query.EvaluationContextProvider;
 import org.springframework.data.repository.query.ParameterAccessor;
 import org.springframework.data.repository.query.ParametersParameterAccessor;
+import org.springframework.data.repository.query.ResultProcessor;
+import org.springframework.data.repository.query.ReturnedType;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.util.Assert;
 
@@ -91,19 +94,6 @@ abstract class AbstractStringBasedJpaQuery extends AbstractJpaQuery {
 				evaluationContextProvider, parser);
 	}
 
-	/**
-	 * Creates an appropriate JPA query from an {@link EntityManager} according to the current {@link AbstractJpaQuery}
-	 * type.
-	 * 
-	 * @param queryString
-	 * @return
-	 */
-	public Query createJpaQuery(String queryString) {
-		Query query = getEntityManager().createQuery(queryString);
-		query = potentiallyAugment(query);
-		return query;
-	}
-
 	/*
 	 * (non-Javadoc)
 	 * @see org.springframework.data.jpa.repository.query.AbstractJpaQuery#doCreateCountQuery(java.lang.Object[])
@@ -130,6 +120,32 @@ abstract class AbstractStringBasedJpaQuery extends AbstractJpaQuery {
 	 */
 	public StringQuery getCountQuery() {
 		return countQuery;
+	}
+
+	/**
+	 * Creates an appropriate JPA query from an {@link EntityManager} according to the current {@link AbstractJpaQuery}
+	 * type.
+	 * 
+	 * @param queryString
+	 * @return
+	 */
+	protected Query createJpaQuery(String queryString) {
+
+		EntityManager em = getEntityManager();
+		Query query = null;
+
+		if (this.query.hasConstructorExpression()) {
+			query = em.createQuery(queryString);
+		} else {
+			ResultProcessor resultFactory = getQueryMethod().getResultProcessor();
+			ReturnedType returnedType = resultFactory.getReturnedType();
+
+			query = returnedType.isProjecting() ? em.createQuery(queryString, Tuple.class) : em.createQuery(queryString);
+		}
+
+		query = potentiallyAugment(query);
+
+		return query;
 	}
 
 	protected Query potentiallyAugment(Query query) {

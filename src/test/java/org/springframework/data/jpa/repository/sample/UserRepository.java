@@ -28,6 +28,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.sample.Role;
 import org.springframework.data.jpa.domain.sample.SpecialUser;
 import org.springframework.data.jpa.domain.sample.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -545,34 +546,54 @@ public interface UserRepository
 			String lastname);
 
 	/**
-	 * DATAJPA-606
+	 * @see DATAJPA-606
 	 */
 	List<User> findByAgeIn(Collection<Integer> ages);
 
 	/**
-	 * DATAJPA-606
+	 * @see DATAJPA-606
 	 */
 	List<User> queryByAgeIn(Integer[] ages);
 
 	/**
-	 * DATAJPA-606
+	 * @see DATAJPA-606
 	 */
 	List<User> queryByAgeInOrFirstname(Integer[] ages, String firstname);
 
 	/**
-	 * DATAJPA-677
+	 * @see DATAJPA-677
 	 */
 	@Query("select u from User u")
 	Stream<User> findAllByCustomQueryAndStream();
 
 	/**
-	 * DATAJPA-677
+	 * @see DATAJPA-677
 	 */
 	Stream<User> readAllByFirstnameNotNull();
 
 	/**
-	 * DATAJPA-677
+	 * @see DATAJPA-677
 	 */
 	@Query("select u from User u")
 	Stream<User> streamAllPaged(Pageable pageable);
+
+	/**
+	 * @see DATAJPA-830
+	 */
+	List<User> findByLastnameNotContaining(String part);
+
+	/**
+	 * @see DATAJPA-829
+	 */
+	List<User> findByRolesContaining(Role role);
+
+	/**
+	 * @see DATAJPA-829
+	 */
+	List<User> findByRolesNotContaining(Role role);
+
+	/**
+	 * @see DATAJPA-858
+	 */
+	List<User> findByRolesNameContaining(String name);
 }

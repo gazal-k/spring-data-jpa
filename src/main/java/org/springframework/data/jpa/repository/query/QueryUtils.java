@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2015 the original author or authors.
+ * Copyright 2008-2016 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ public abstract class QueryUtils {
 	private static final String IDENTIFIER = "[\\p{Lu}\\P{InBASIC_LATIN}\\p{Alnum}._$]+";
 	private static final String IDENTIFIER_GROUP = String.format("(%s)", IDENTIFIER);
 
-	private static final String JOIN = "join " + IDENTIFIER + " (as )?" + IDENTIFIER_GROUP;
+	private static final String JOIN = "join\\s" + IDENTIFIER + "\\s(as\\s)?" + IDENTIFIER_GROUP;
 	private static final Pattern JOIN_PATTERN = Pattern.compile(JOIN, Pattern.CASE_INSENSITIVE);
 
 	private static final String EQUALS_CONDITION_STRING = "%s.%s = :%s";
@@ -92,6 +92,8 @@ public abstract class QueryUtils {
 
 	private static final Pattern NAMED_PARAMETER = Pattern.compile(":" + IDENTIFIER + "|\\#" + IDENTIFIER,
 			CASE_INSENSITIVE);
+
+	private static final Pattern CONSTRUCTOR_EXPRESSION;
 
 	private static final Map<PersistentAttributeType, Class<? extends Annotation>> ASSOCIATION_TYPES;
 
@@ -102,10 +104,10 @@ public abstract class QueryUtils {
 
 		StringBuilder builder = new StringBuilder();
 		builder.append("(?<=from)"); // from as starting delimiter
-		builder.append("(?: )+"); // at least one space separating
+		builder.append("(?:\\s)+"); // at least one space separating
 		builder.append(IDENTIFIER_GROUP); // Entity name, can be qualified (any
-		builder.append("(?: as)*"); // exclude possible "as" keyword
-		builder.append("(?: )+"); // at least one space separating
+		builder.append("(?:\\sas)*"); // exclude possible "as" keyword
+		builder.append("(?:\\s)+"); // at least one space separating
 		builder.append("(\\w*)"); // the actual alias
 
 		ALIAS_MATCH = compile(builder.toString(), CASE_INSENSITIVE);
@@ -127,6 +129,19 @@ public abstract class QueryUtils {
 		persistentAttributeTypes.put(ELEMENT_COLLECTION, null);
 
 		ASSOCIATION_TYPES = Collections.unmodifiableMap(persistentAttributeTypes);
+
+		builder = new StringBuilder();
+		builder.append("select");
+		builder.append("\\s+"); // at least one space separating
+		builder.append("new");
+		builder.append("\\s+"); // at least one space separating
+		builder.append(IDENTIFIER);
+		builder.append("\\s*"); // zero to unlimited space separating
+		builder.append("\\(");
+		builder.append(".*");
+		builder.append("\\)");
+
+		CONSTRUCTOR_EXPRESSION = compile(builder.toString(), CASE_INSENSITIVE);
 	}
 
 	/**
@@ -222,7 +237,7 @@ public abstract class QueryUtils {
 
 	/**
 	 * Returns the order clause for the given {@link Order}. Will prefix the clause with the given alias if the referenced
-	 * property refers to a join alias.
+	 * property refers to a join alias, i.e. starts with {@code $alias.}.
 	 * 
 	 * @param joinAliases the join aliases of the original query.
 	 * @param alias the alias for the root entity.
@@ -235,7 +250,7 @@ public abstract class QueryUtils {
 		boolean qualifyReference = !property.contains("("); // ( indicates a function
 
 		for (String joinAlias : joinAliases) {
-			if (property.startsWith(joinAlias)) {
+			if (property.startsWith(joinAlias.concat("."))) {
 				qualifyReference = false;
 				break;
 			}
@@ -428,6 +443,20 @@ public abstract class QueryUtils {
 		}
 
 		return orders;
+	}
+
+	/**
+	 * Returns whether the given JPQL query contains a constructor expression.
+	 * 
+	 * @param query must not be {@literal null} or empty.
+	 * @return
+	 * @since 1.10
+	 */
+	public static boolean hasConstructorExpression(String query) {
+
+		Assert.hasText(query, "Query must not be null or empty!");
+
+		return CONSTRUCTOR_EXPRESSION.matcher(query).find();
 	}
 
 	/**

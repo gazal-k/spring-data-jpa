@@ -19,12 +19,12 @@ import javax.persistence.EntityManager;
 
 import org.springframework.data.repository.augment.UpdateContext;
 
-import com.mysema.query.dml.DeleteClause;
-import com.mysema.query.dml.UpdateClause;
-import com.mysema.query.jpa.impl.JPADeleteClause;
-import com.mysema.query.jpa.impl.JPAUpdateClause;
-import com.mysema.query.types.EntityPath;
-import com.mysema.query.types.Path;
+import com.querydsl.core.dml.DeleteClause;
+import com.querydsl.core.dml.UpdateClause;
+import com.querydsl.core.types.EntityPath;
+import com.querydsl.core.types.Path;
+import com.querydsl.jpa.impl.JPADeleteClause;
+import com.querydsl.jpa.impl.JPAUpdateClause;
 
 /**
  * @author Dev Naruka

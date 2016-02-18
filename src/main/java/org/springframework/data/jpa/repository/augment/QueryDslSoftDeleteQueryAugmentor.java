@@ -23,9 +23,9 @@ import org.springframework.data.repository.SoftDelete;
 import org.springframework.data.repository.augment.AbstractSoftDeleteQueryAugmentor;
 import org.springframework.data.repository.augment.QueryContext.QueryMode;
 
-import com.mysema.query.jpa.JPQLQuery;
-import com.mysema.query.types.Predicate;
-import com.mysema.query.types.path.PathBuilder;
+import com.querydsl.core.types.Predicate;
+import com.querydsl.core.types.dsl.PathBuilder;
+import com.querydsl.jpa.JPQLQuery;
 
 /**
  * Querydsl implementation of {@link AbstractSoftDeleteQueryAugmentor} to transparently turn delete calls into entity
